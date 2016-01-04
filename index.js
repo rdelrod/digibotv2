@@ -112,6 +112,7 @@
    // TODO: Determine if you can "squash" together commits, by detecting if the messages are next to one another
 
    var formattedMessage = '',
+       oMP              = localMessageTable.length-1,
        isEdit,
        editID;
 
@@ -119,12 +120,15 @@
      console.log('notice: we were the last to send a message.')
      formattedMessage += '\n\n';
 
-     var oMP = localMessageTable.length-1;
      var oldMessageT = localMessageTable[oMP].message.split('\n');
 
      var isCommitMessage = /[\*]{2}([a-z\s]*)[\*]{2} just pushed a commit to [_\*]{4}([a-z]*)[_\*]{4}/ig
 
-     if(isCommitMessage.test(oldMessageT[0])) { // check if it is a commit.
+     var iCM =isCommitMessage.test(oldMessageT[0]);
+
+     console.log('Is Commit Message: ', iCM);
+
+     if(iCM) { // check if it is a commit.
        var matches = isCommitMessage.exec(oldMessageT[0]);
 
        if(matches !== null) {
@@ -171,6 +175,7 @@
        message: formattedMessage
      });
    } else {
+     localMessageTable[oMP].message = formattedMessage;
      return bot.editMessage({
        channel: config.channel, // TODO: get from message.
        messageID: editID,
