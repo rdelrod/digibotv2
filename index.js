@@ -138,10 +138,6 @@
          isHardEdit = true;
          editID = localMessageTable[oMP].mid;
          formattedMessage = editedoM;
-       } else {
-         isEdit = true;
-         editID = localMessageTable[oMP].message; // just in case.
-         formattedMessage = oldMessageT.join('\n')+'\n';
        }
      }
    }
