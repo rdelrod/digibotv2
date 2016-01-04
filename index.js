@@ -36,6 +36,11 @@
      return; // ignore non channels in the filter
    }
 
+   localMessageTable.push({
+     id: userID,
+     message: message
+   });
+
    // check if it's a mention.
    var isMention = new RegExp('^\<@'+bot.id+'\>');
    if(!isMention.test(message)) {
@@ -68,7 +73,6 @@
        var formattedMessage = "__**{{repo}}**__ - {{desc}}\n";
        formattedMessage    += "{{followers}} *followers*\n";
        formattedMessage    += "{{watchers}} *watchers*\n";
-       // formattedMessage    += "Updated on {{updated}} \n";
 
        // TODO: accept an object
        var responseTemplate = function(k, v) {
@@ -100,10 +104,17 @@
  gh.listen();
 
  gh.on('push', function (repo, ref, data) {
-   var formattedMessage = "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
+   // TODO: Determine if you can "squash" together commits, by detecting if the messages are next to one another
+
+   var formattedMessage = '';
+
+   if(localMessageTable[localMessageTable.length].id === bot.id) {
+     formattedMessage += '\n\n';
+   }
+
+   formattedMessage = "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
    formattedMessage    += "*{{message}}*\n\n";
    formattedMessage    += "+ {{added}} files **|** - {{minus}} files **|** M: {{mod}} files"
-   // formattedMessage    += "Updated on {{updated}} \n";
 
    // TODO: accept an object
    var responseTemplate = function(k, v) {
