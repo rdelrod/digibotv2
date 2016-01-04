@@ -117,7 +117,7 @@
        isEdit,
        editID;
 
-   if(localMessageTable[localMessageTable.length-1].uid === bot.id) {
+   if(localMessageTable[oMP].uid === bot.id && localMessageTable[oMP].notRuined === true) {
      console.log('notice: we were the last to send a message.');
 
      var oldMessageT = localMessageTable[oMP].message.split('\n');
@@ -174,6 +174,7 @@
      localMessageTable[oMP].message = formattedMessage;
      return bot.editMessage({
        channel: config.broadcast, // TODO: get from message.
+       notRuined: isHardEdit,
        messageID: editID,
        message: formattedMessage
      });
