@@ -122,12 +122,12 @@
 
      var oldMessageT = localMessageTable[oMP].message.split('\n');
 
-     var isCommitMessage = /just pushed a commit to [_\*]{4}([a-z]*)[_\*]{4}/ig
+     var isCommitMessage = /just pushed a commit to __\*\*([\w]*)\*\*__/ig
 
      var iCM = isCommitMessage.test(oldMessageT[0]);
 
      if(iCM) { // check if it is a commit.
-       var matches = oldMessageT[0].match(isCommitMessage);
+       var matches = isCommitMessage.exec(oldMessageT[0].match(isCommitMessage)[0]);
 
        console.log(matches);
      }
