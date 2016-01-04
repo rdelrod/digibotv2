@@ -112,6 +112,7 @@
    // TODO: Determine if you can "squash" together commits, by detecting if the messages are next to one another
 
    var formattedMessage = '',
+       isHardEdit       = false,
        oMP              = localMessageTable.length-1,
        isEdit,
        editID;
@@ -133,14 +134,19 @@
          editedoM = editedoM.join('\n');
 
          // set edit setup
-         isEdit = true,
+         isEdit = true;
+         isHardEdit = true;
          editID = localMessageTable[oMP].mid;
          formattedMessage = editedoM;
+       } else {
+         isEdit = true;
+         editID = localMessageTable[oMP].message; // just in case.
+         formattedMessage = oldMessageT.join('\n')+'\n';
        }
      }
    }
 
-   if(!isEdit) {
+   if(!isHardEdit) {
      formattedMessage    += "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
    }
 
