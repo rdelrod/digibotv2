@@ -111,7 +111,9 @@
  gh.on('push', function (repo, ref, data) {
    // TODO: Determine if you can "squash" together commits, by detecting if the messages are next to one another
 
-   var formattedMessage = '';
+   var formattedMessage = '',
+       isEdit,
+       editID;
 
    if(localMessageTable[localMessageTable.length-1].uid === bot.id) {
      console.log('notice: we were the last to send a message.')
@@ -138,8 +140,13 @@
      // add room
      var editedoM = oldMessageT;
      editedoM[3] = undefined;
-     // editedoM[2] = editedoM[2].replace(/\n/g, '')+'\n';
+     editedoM[2] = undefined;
      editedoM = editedoM.join('\n');
+
+     isEdit = true,
+     editID = localMessageTable[oMP].mid;
+
+     formattedMessage = editedoM;
 
      console.log(editedoM);
    } else {
@@ -161,8 +168,16 @@
    responseTemplate('minus', data.head_commit.removed.length);
    responseTemplate('mod', data.head_commit.modified.length);
 
-   return bot.sendMessage({
-     to: config.channel,
-     message: formattedMessage
-   });
+   if(!isEdit) {
+     return bot.sendMessage({
+       to: config.channel,
+       message: formattedMessage
+     });
+   } else {
+     return bot.editMessage({
+       channel: config.channel, // TODO: get from message.
+       messageID: editID,
+       message: formattedMessage
+     });
+   }
  });
