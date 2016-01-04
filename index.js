@@ -110,12 +110,12 @@
      formattedMessage = formattedMessage.replace('{{'+k+'}}', v);
    }
 
-   formattedMessage('name', data.head_commit.author.name);
-   formattedMessage('repo', data.repository.name);
-   formattedMessage('message', data.head_commit.message);
-   formattedMessage('added', data.head_commit.added.length);
-   formattedMessage('minus', data.head_commit.removed.length);
-   formattedMessage('mod', data.head_commit.modified.length);
+   responseTemplate('name', data.head_commit.author.name);
+   responseTemplate('repo', data.repository.name);
+   responseTemplate('message', data.head_commit.message);
+   responseTemplate('added', data.head_commit.added.length);
+   responseTemplate('minus', data.head_commit.removed.length);
+   responseTemplate('mod', data.head_commit.modified.length);
 
    return bot.sendMessage({
      to: config.channel,
