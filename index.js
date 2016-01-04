@@ -117,7 +117,7 @@
        isEdit,
        editID;
 
-   if(localMessageTable[oMP].uid === bot.id && localMessageTable[oMP].notRuined === true) {
+   if(localMessageTable[oMP].uid === bot.id && localMessageTable[oMP].notRuined !== false) {
      console.log('notice: we were the last to send a message.');
 
      var oldMessageT = localMessageTable[oMP].message.split('\n');
