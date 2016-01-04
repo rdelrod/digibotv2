@@ -140,7 +140,6 @@
      // add room
      var editedoM = oldMessageT;
      editedoM[editedoM.length-1] = undefined;
-     editedoM[editedoM.length-2] = undefined;
      editedoM = editedoM.join('\n');
 
      // set edit setup
@@ -151,7 +150,7 @@
      formattedMessage    += "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
    }
 
-   formattedMessage    += "*{{message}}*\n\n";
+   formattedMessage    += "*{{message}}*\n";
    formattedMessage    += "+ {{added}} files **|** - {{minus}} files **|** M: {{mod}} files"
 
    // TODO: accept an object
