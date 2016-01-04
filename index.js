@@ -127,19 +127,17 @@
        var matches = isCommitMessage.exec(oldMessageT[0].match(isCommitMessage)[0]);
 
        if(matches[1] === data.head_commit.author.name && matches[2] === data.repository.name) {
-         console.log("notice: same author and repo, combine.")
+         // add room
+         var editedoM = oldMessageT;
+         editedoM[editedoM.length-1] = undefined;
+         editedoM = editedoM.join('\n');
+
+         // set edit setup
+         isEdit = true,
+         editID = localMessageTable[oMP].mid;
+         formattedMessage = editedoM;
        }
      }
-
-     // add room
-     var editedoM = oldMessageT;
-     editedoM[editedoM.length-1] = undefined;
-     editedoM = editedoM.join('\n');
-
-     // set edit setup
-     isEdit = true,
-     editID = localMessageTable[oMP].mid;
-     formattedMessage = editedoM;
    }
 
    if(!isEdit) {
