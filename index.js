@@ -120,7 +120,7 @@
      var oMP = localMessageTable.length-1;
      var oldMessageT = localMessageTable[oMP].message.split('\n');
 
-     var isCommitMessage = /just pushed a commit to ([a-Z])/g
+     var isCommitMessage = /just pushed a commit to ([a-z])/ig
 
      if(isCommitMessage.test(oldMessageT[0])) {
 
@@ -137,7 +137,7 @@
    } else {
      formattedMessage    += "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
    }
-   
+
    formattedMessage    += "*{{message}}*\n\n";
    formattedMessage    += "+ {{added}} files **|** - {{minus}} files **|** M: {{mod}} files"
 
