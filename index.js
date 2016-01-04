@@ -11,7 +11,10 @@
      githubhook    = require('githubhook'),
      moment        = require('moment'),
      client        = github.client(),
-     localMessageTable = [],
+     localMessageTable = [{
+       id: 0,
+       message: 'initial'
+     }],
      config;
 
  try {
