@@ -122,7 +122,7 @@
 
      var oldMessageT = localMessageTable[oMP].message.split('\n');
 
-     var isCommitMessage = /[\*]{2}([a-z\s]*)[\*]{2} just pushed a commit to [_\*]{4}([a-z]*)[_\*]{4}/ig
+     var isCommitMessage = /just pushed a commit to [_\*]{4}([a-z]*)[_\*]{4}/ig
 
      var iCM = isCommitMessage.test(oldMessageT[0]);
 
