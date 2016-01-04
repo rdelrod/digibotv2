@@ -100,8 +100,8 @@
  gh.listen();
 
  gh.on('push', function (repo, ref, data) {
-   var formattedMessage = "**{{name}}** just pushed a commit to __**{{repo}}**__\n\n";
-   formattedMessage    += "*{{message}}}*\n\n";
+   var formattedMessage = "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
+   formattedMessage    += "*{{message}}*\n\n";
    formattedMessage    += "+ {{added}} files **|** - {{minus}} files **|** M: {{mod}} files"
    // formattedMessage    += "Updated on {{updated}} \n";
 
