@@ -100,5 +100,25 @@
  gh.listen();
 
  gh.on('push', function (repo, ref, data) {
-   console.log(repo, ref, data);
+   var formattedMessage = "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
+   formattedMessage    += "*{{message}}}*\n";
+   formattedMessage    += "+ {{added}} files **|** - {{minus}} files **|** M: {{mod}} files"
+   // formattedMessage    += "Updated on {{updated}} \n";
+
+   // TODO: accept an object
+   var responseTemplate = function(k, v) {
+     formattedMessage = formattedMessage.replace('{{'+k+'}}', v);
+   }
+
+   formattedMessage('name', data.head_commit.author.name);
+   formattedMessage('repo', data.repository.name);
+   formattedMessage('message', data.head_commit.message);
+   formattedMessage('added', data.head_commit.added.length);
+   formattedMessage('minus', data.head_commit.removed.length);
+   formattedMessage('mod', data.head_commit.modified.length);
+
+   return bot.sendMessage({
+     to: config.channel,
+     message: formattedMessage
+   });
  });
