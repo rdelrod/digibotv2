@@ -112,7 +112,7 @@
 
    var formattedMessage = '';
 
-   if(localMessageTable[localMessageTable.length].id === bot.id) {
+   if(localMessageTable[localMessageTable.length-1].id === bot.id) {
      formattedMessage += '\n\n';
    }
 
