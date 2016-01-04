@@ -116,9 +116,28 @@
    if(localMessageTable[localMessageTable.length-1].uid === bot.id) {
      console.log('notice: we were the last to send a message.')
      formattedMessage += '\n\n';
-   }
 
-   formattedMessage = "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
+     var oMP = localMessageTable.length-1;
+     var oldMessageT = localMessageTable[oMP].message.split('\n');
+
+     var isCommitMessage = /just pushed a commit to ([a-Z])/g
+
+     if(isCommitMessage.test(oldMessageT[0])) {
+
+     } else {
+       console.log(oldMessageT[0]);
+     }
+
+     // add room
+     var editedoM = oldMessageT.splice(3);
+     editedoM[2] = editedoM[2].replace(/\n/g, '')+'\n';
+     editedoM = editedoM.join('\n');
+
+     console.log(editedoM);
+   } else {
+     formattedMessage    += "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
+   }
+   
    formattedMessage    += "*{{message}}*\n\n";
    formattedMessage    += "+ {{added}} files **|** - {{minus}} files **|** M: {{mod}} files"
 
