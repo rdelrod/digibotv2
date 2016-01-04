@@ -117,19 +117,18 @@
        editID;
 
    if(localMessageTable[localMessageTable.length-1].uid === bot.id) {
-     console.log('notice: we were the last to send a message.')
-     formattedMessage += '\n\n';
+     console.log('notice: we were the last to send a message.');
 
      var oldMessageT = localMessageTable[oMP].message.split('\n');
-
-     var isCommitMessage = /just pushed a commit to __\*\*([\w]*)\*\*__/ig
-
+     var isCommitMessage = /\*\*([\w\s]*)\*\* just pushed a commit to __\*\*([a-z]*)\*\*__/ig
      var iCM = isCommitMessage.test(oldMessageT[0]);
 
      if(iCM) { // check if it is a commit.
        var matches = isCommitMessage.exec(oldMessageT[0].match(isCommitMessage)[0]);
 
-       console.log(matches);
+       if(matches[1] === data.head_commit.author.name && matches[2] === data.repository.name) {
+         console.log("notice: same author and repo, combine.")
+       }
      }
 
      // add room
@@ -141,7 +140,9 @@
      isEdit = true,
      editID = localMessageTable[oMP].mid;
      formattedMessage = editedoM;
-   } else {
+   }
+
+   if(!isEdit) {
      formattedMessage    += "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
    }
 
