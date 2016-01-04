@@ -41,7 +41,8 @@
    }
 
    localMessageTable.push({
-     id: userID,
+     uid: userID,
+     mid: rawEvent.d.id,
      message: message
    });
 
@@ -112,7 +113,8 @@
 
    var formattedMessage = '';
 
-   if(localMessageTable[localMessageTable.length-1].id === bot.id) {
+   if(localMessageTable[localMessageTable.length-1].uid === bot.id) {
+     console.log('notice: we were the last to send a message.')
      formattedMessage += '\n\n';
    }
 
