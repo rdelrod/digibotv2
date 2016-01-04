@@ -141,7 +141,6 @@
      var editedoM = oldMessageT;
      editedoM[editedoM.length-1] = undefined;
      editedoM[editedoM.length-2] = undefined;
-     editedoM[editedoM.length-3] = undefined;
      editedoM = editedoM.join('\n');
 
      // set edit setup
