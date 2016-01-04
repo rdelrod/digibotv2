@@ -120,17 +120,23 @@
      var oMP = localMessageTable.length-1;
      var oldMessageT = localMessageTable[oMP].message.split('\n');
 
-     var isCommitMessage = /just pushed a commit to ([a-z])/ig
+     var isCommitMessage = /[\*]{2}([a-z\s]*)[\*]{2} just pushed a commit to [_\*]{4}([a-z]*)[_\*]{4}/ig
 
-     if(isCommitMessage.test(oldMessageT[0])) {
+     if(isCommitMessage.test(oldMessageT[0])) { // check if it is a commit.
+       var matches = isCommitMessage.exec(oldMessageT[0]);
 
+       // check if same repo & user.
+       if(matches[1] === data.repository && matches[0] === data.head_commit.auther.name) {
+         console.log('notice: same repo and person. will edit & combine.')
+       }
      } else {
        console.log(oldMessageT[0]);
      }
 
      // add room
-     var editedoM = oldMessageT.splice(3);
-     editedoM[2] = editedoM[2].replace(/\n/g, '')+'\n';
+     var editedoM = oldMessageT;
+     editedoM[3] = undefined;
+     // editedoM[2] = editedoM[2].replace(/\n/g, '')+'\n';
      editedoM = editedoM.join('\n');
 
      console.log(editedoM);
