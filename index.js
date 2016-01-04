@@ -139,16 +139,15 @@
 
      // add room
      var editedoM = oldMessageT;
-     editedoM[3] = undefined;
-     editedoM[2] = undefined;
+     editedoM[editedoM.length-1] = undefined;
+     editedoM[editedoM.length-2] = undefined;
+     editedoM[editedoM.length-3] = undefined;
      editedoM = editedoM.join('\n');
 
+     // set edit setup
      isEdit = true,
      editID = localMessageTable[oMP].mid;
-
      formattedMessage = editedoM;
-
-     console.log(editedoM);
    } else {
      formattedMessage    += "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
    }
