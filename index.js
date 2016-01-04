@@ -124,10 +124,12 @@
 
      var isCommitMessage = /[\*]{2}([a-z\s]*)[\*]{2} just pushed a commit to [_\*]{4}([a-z]*)[_\*]{4}/ig
 
-     var iCM =isCommitMessage.test(oldMessageT[0]);
+     var iCM = isCommitMessage.test(oldMessageT[0]);
 
      if(iCM) { // check if it is a commit.
        var matches = isCommitMessage.exec(oldMessageT[0]);
+
+       console.log(oldMessageT[0]);
 
        console.log(matches);
      } else {
