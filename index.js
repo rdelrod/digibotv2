@@ -126,17 +126,10 @@
 
      var iCM =isCommitMessage.test(oldMessageT[0]);
 
-     console.log('Is Commit Message: ', iCM);
-
      if(iCM) { // check if it is a commit.
        var matches = isCommitMessage.exec(oldMessageT[0]);
 
-       if(matches !== null) {
-         // check if same repo & user.
-         if(matches[1] === data.repository && matches[0] === data.head_commit.auther.name) {
-           console.log('notice: same repo and person. will edit & combine.')
-         }
-        }
+       console.log(matches);
      } else {
        console.log(oldMessageT[0]);
      }
