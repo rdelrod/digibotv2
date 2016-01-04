@@ -127,13 +127,9 @@
      var iCM = isCommitMessage.test(oldMessageT[0]);
 
      if(iCM) { // check if it is a commit.
-       var matches = isCommitMessage.exec(oldMessageT[0]);
-
-       console.log(oldMessageT[0]);
+       var matches = oldMessageT[0].match(isCommitMessage);
 
        console.log(matches);
-     } else {
-       console.log(oldMessageT[0]);
      }
 
      // add room
@@ -166,13 +162,13 @@
 
    if(!isEdit) {
      return bot.sendMessage({
-       to: config.channel,
+       to: config.broadcast,
        message: formattedMessage
      });
    } else {
      localMessageTable[oMP].message = formattedMessage;
      return bot.editMessage({
-       channel: config.channel, // TODO: get from message.
+       channel: config.broadcast, // TODO: get from message.
        messageID: editID,
        message: formattedMessage
      });
