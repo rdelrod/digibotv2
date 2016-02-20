@@ -1,21 +1,23 @@
 /**
- * DiGit - Discord Github Bot.
+ * DiGitv2 Bot
  *
  * @author Jared Allard <jaredallard@outlook.com>
  * @version 1.0.0
  * @license MIT
  **/
 
- var DiscordClient = require('discord.io'),
-     github        = require('octonode'),
-     githubhook    = require('githubhook'),
+ 'use strict';
+
+ let DiscordClient = require('discord.io'),
      moment        = require('moment'),
-     client        = github.client(),
+     express       = require('express'),
      localMessageTable = [{
        id: 0,
        message: 'initial'
      }],
      config;
+
+ let serverStatus = 'down';
 
  try {
    config = require('./config/config.json');
@@ -24,7 +26,7 @@
    throw err;
  }
 
- var bot = new DiscordClient({
+ const bot = new DiscordClient({
      autorun: true,
      email: config.email,
      password: config.password,
@@ -56,123 +58,36 @@
    if(isStatus.test(message)) {
      return bot.sendMessage({
        to: channelID,
-       message: "<@"+userID+"> All good 'capn!"
-     });
-   }
-
-   var isInfo = /info (\w*)[ ]|(\w*\/\w*)/ig
-   if(isInfo.test(message)) {
-     var theirRepo = isInfo.exec(message)[0];
-
-     if(theirRepo === null) {
-       return; // probably not it, or something happened.
-     }
-
-     var repo = client.repo(theirRepo);
-
-     repo.info(function(err, info) {
-       if(err) {
-         return;
-       }
-
-       var formattedMessage = "__**{{repo}}**__ - {{desc}}\n";
-       formattedMessage    += "{{followers}} *followers*\n";
-       formattedMessage    += "{{watchers}} *watchers*\n";
-
-       // TODO: accept an object
-       var responseTemplate = function(k, v) {
-         formattedMessage = formattedMessage.replace('{{'+k+'}}', v);
-       }
-
-       // format the template.
-       responseTemplate('repo', info.name);
-       responseTemplate('followers', info.subscribers_count);
-       responseTemplate('desc', info.description);
-       responseTemplate('watchers', info.watchers_count);
-
-       // TODO: allow detailed option
-
-       return bot.sendMessage({
-         to: channelID,
-         message: formattedMessage
-       });
+       message: "<@"+userID+"> server is: **"+serverStatus+"**"
      });
    }
  });
 
- var gh = githubhook({
-   host: '0.0.0.0',
-   port: 3420,
-   path: '/digibot'
- });
 
- gh.listen();
+/* Express "webhook" */
+const app = express();
 
- gh.on('push', function (repo, ref, data) {
-   // TODO: Determine if you can "squash" together commits, by detecting if the messages are next to one another
+const bodyP  = require('body-parser');
+const morgan = require('morgan');
 
-   var formattedMessage = '',
-       isHardEdit       = false,
-       oMP              = localMessageTable.length-1,
-       isEdit,
-       editID;
+app.use(bodyP.json());
+app.use(morgan('dev'));
 
-   if(localMessageTable[oMP].uid === bot.id && localMessageTable[oMP].notRuined !== false) {
-     console.log('notice: we were the last to send a message.');
+app.post('/event', function(req, res) {
+  console.log(req.body);
 
-     var oldMessageT = localMessageTable[oMP].message.split('\n');
-     var isCommitMessage = /\*\*([\w\s]*)\*\* just pushed a commit to __\*\*([a-z]*)\*\*__/ig
-     var iCM = isCommitMessage.test(oldMessageT[0]);
+  if(req.body.event === 'status') {
+    serverStatus = req.body.data;
 
-     if(iCM) { // check if it is a commit.
-       var matches = isCommitMessage.exec(oldMessageT[0].match(isCommitMessage)[0]);
+    bot.sendMessage({
+      to: config.broadcast,
+      message: "server is now **"+req.body.data+"**"
+    })
+  }
 
-       if(matches[1] === data.head_commit.author.name && matches[2] === data.repository.name) {
-         // add room
-         var editedoM = oldMessageT;
-         editedoM[editedoM.length-1] = undefined;
-         editedoM = editedoM.join('\n');
+  res.send({
+    success: true
+  })
+});
 
-         // set edit setup
-         isEdit = true;
-         isHardEdit = true;
-         editID = localMessageTable[oMP].mid;
-         formattedMessage = editedoM;
-       }
-     }
-   }
-
-   if(!isHardEdit) {
-     formattedMessage    += "**{{name}}** just pushed a commit to __**{{repo}}**__\n";
-   }
-
-   formattedMessage    += "*{{message}}*\n";
-   formattedMessage    += "+ {{added}} files **|** - {{minus}} files **|** M: {{mod}} files"
-
-   // TODO: accept an object
-   var responseTemplate = function(k, v) {
-     formattedMessage = formattedMessage.replace('{{'+k+'}}', v);
-   }
-
-   responseTemplate('name', data.head_commit.author.name);
-   responseTemplate('repo', data.repository.name);
-   responseTemplate('message', data.head_commit.message);
-   responseTemplate('added', data.head_commit.added.length);
-   responseTemplate('minus', data.head_commit.removed.length);
-   responseTemplate('mod', data.head_commit.modified.length);
-
-   if(!isEdit) {
-     return bot.sendMessage({
-       to: config.broadcast,
-       message: formattedMessage
-     });
-   } else {
-     localMessageTable[oMP].message = formattedMessage;
-     return bot.editMessage({
-       channel: config.broadcast, // TODO: get from message.
-       notRuined: isHardEdit,
-       messageID: editID,
-       message: formattedMessage
-     });
-   }
- });
+app.listen(8083)

@@ -21,9 +21,10 @@
   },
   "homepage": "https://github.com/jaredallard/digit#readme",
   "dependencies": {
+    "body-parser": "^1.15.0",
     "discord.io": "^1.6.3",
-    "githubhook": "^1.4.0",
+    "express": "^4.0.0",
     "moment": "^2.11.0",
-    "octonode": "^0.7.4"
+    "morgan": "^1.7.0"
   }
 }
