@@ -10,6 +10,7 @@
 
  let DiscordClient = require('discord.io'),
      moment        = require('moment'),
+     request       = require('request'),
      express       = require('express'),
      localMessageTable = [{
        id: 0,
@@ -37,7 +38,31 @@
      console.log(bot.username + " - (" + bot.id + ")");
  });
 
+
+ /**
+  * Send an authenticated request to the API.
+  **/
+ function sendAuthenticatedRequest(method, endpoint, next) {
+   let serverURI = config.uri.replace(/\/$/, '')+'/';
+   let fullURI = serverURI+endpoint;
+
+   // make the request
+   request[method](fullURI, {
+     headers: {
+       'Authentication': 'Basic '+config.authentication.accessToken+':'+config.authentication.accessTokenSecret
+     }
+   }, function(err, http, body) {
+     if(err) {
+       return next(err);
+     }
+
+     return next(null, body);
+   });
+ }
+
  bot.on('message', function(user, userID, channelID, message, rawEvent) {
+   // DEBUG: console.log(user, userID, message);
+
    if(channelID !== config.channel && config.channel !== '*') {
      return; // ignore non channels in the filter
    }
@@ -50,8 +75,96 @@
 
    // check if it's a mention.
    var isMention = new RegExp('^\<@'+bot.id+'\>');
-   if(!isMention.test(message)) {
+   var isMentionOld = new RegExp('^@digibot');
+   if(!isMention.test(message) && !isMentionOld.test(message)) {
     return; // ignore non mentions for now
+   }
+
+   if(config.admins.indexOf(userID) !== -1) {
+     var isRestart = /(^|\s)restart/ig;
+     if(isRestart.test(message)) {
+       return bot.sendMessage({
+         to: channelID,
+         message: "<@"+userID+"> restarting isn't currently supported. Try stop, then start"
+       });
+     }
+
+     var isShutdown = /(^|\s)shutdown/ig;
+     if(isShutdown.test(message)) {
+       return sendAuthenticatedRequest('get', 'server/stop', function(err, res) {
+         if(err) {
+           console.log('[digibot] authReq reported error:', err)
+           return false;
+         }
+
+         try {
+           res = JSON.parse(res);
+         } catch(err) {
+           return false;
+         }
+
+         if(!res.success) {
+           return bot.sendMessage({
+             to: channelID,
+             message: "<@"+userID+"> Failed to shutdown the server."
+           });
+         }
+
+         return bot.sendMessage({
+           to: channelID,
+           message: "<@"+userID+"> Sent stop request!"
+         });
+       })
+     }
+
+     var isVstatus = /(^| )verbose status/igm;
+     if(isVstatus.test(message)) {
+       return sendAuthenticatedRequest('get', 'server/status', function(err, res) {
+         if(err) {
+           console.log('[digibot] authReq reported error:', err)
+           return false;
+         }
+
+         try {
+           res = JSON.parse(res);
+         } catch(err) {
+           return false;
+         }
+
+         return bot.sendMessage({
+           to: channelID,
+           message: "<@"+userID+"> API reports **"+res.status+"** with **"+res.latency+"**ms mcfd latency"
+         });
+       })
+     }
+
+     var isStart = /(^|\s)start/ig;
+     if(isStart.test(message)) {
+       return sendAuthenticatedRequest('get', 'server/start', function(err, res) {
+         if(err) {
+           console.log('[digibot] authReq reported error:', err)
+           return false;
+         }
+
+         try {
+           res = JSON.parse(res);
+         } catch(err) {
+           return false;
+         }
+
+         if(!res.success) {
+           return bot.sendMessage({
+             to: channelID,
+             message: "<@"+userID+"> Failed to start the server"
+           });
+         }
+
+         return bot.sendMessage({
+           to: channelID,
+           message: "<@"+userID+"> Started."
+         });
+       })
+     }
    }
 
    var isStatus = /(^|\s)status/ig;

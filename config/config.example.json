@@ -1,0 +1,15 @@
+{
+        "email": "youremail@provider.com",
+        "password": "yourpassword",
+        "token": "",
+        "channel": "channel to listen on or * for all",
+        "broadcast": "broadcast webhook messages on this channelID",
+        "admins": [
+          "userid"
+        ],
+        "uri": "http(s)://yourapiloc.com:port",
+        "authentication": {
+          "accessToken": "your-access-token",
+          "accessTokenSecret": "your-access-token-secret"
+        }
+}
