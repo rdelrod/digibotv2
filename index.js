@@ -8,8 +8,9 @@
 
  'use strict';
 
+ const markutils   = require('./lib/simplemarkdown.js');
+
  let DiscordClient = require('discord.io'),
-     moment        = require('moment'),
      request       = require('request'),
      express       = require('express'),
      localMessageTable = [{
@@ -20,6 +21,7 @@
 
  let serverStatus = 'down';
 
+ // load the config
  try {
    config = require('./config/config.json');
  } catch(err) {
@@ -35,12 +37,19 @@
  });
 
  bot.on('ready', function() {
-     console.log(bot.username + " - (" + bot.id + ")");
+     console.log(bot.username + ' - (' + bot.id + ')');
  });
 
 
  /**
   * Send an authenticated request to the API.
+  *
+  * @param {string} method   - method type (GET/POST)
+  * @param {string} endpoint - REST /endpoint
+  * @param {Function} next   - callback
+  * @callback next
+  *
+  * @returns {undefined}
   **/
  function sendAuthenticatedRequest(method, endpoint, next) {
    let serverURI = config.uri.replace(/\/$/, '')+'/';
@@ -56,68 +65,168 @@
        return next(err);
      }
 
+     try {
+       body = JSON.parse(body);
+     } catch(e) {
+       return next(e);
+     }
+
+     if(!body.success) { // on error
+       return next(body.reason);
+     }
+
      return next(null, body);
    });
  }
 
+ /**
+  * Simple markutils wrapper for bot messages.
+  *
+  * @param {Object} bot     - bot object from discord.
+  * @param {String/Int} to  - channel id to send to.
+  * @param {String} message - plaintext object.
+  * @param {Object} opts    - handlebars like parse object.
+  *
+  * @returns {bool} success
+  **/
+ function sendMessage(bot, to, message, opts) {
+   if(to === undefined) { // using object params.
+      to = bot.to;
+      message = bot.message;
+      opts = bot.opts;
+
+      // shift bot.bot to bot.
+      bot = bot.bot;
+   }
+
+   return bot.sendMessage({
+     to: to,
+     message: markutils.parse(message, opts)
+   })
+ }
+
  bot.on('message', function(user, userID, channelID, message, rawEvent) {
    // DEBUG: console.log(user, userID, message);
+   let isMention    = new RegExp('^\<@'+bot.id+'\>');
+   let isMentionOld = new RegExp('^@digibot');
+   let isVstatus    = /(^|\s)verbose status/igm;
+   let isForceShut  = /(^|\s)(force|kill) (kill|stop|shutdown|now)/ig;
+   let isShutdown   = /(^|) (shutdown|stop)/ig;
+   let isRestart    = /(^|\s)restart/ig;
+   let isStart      = /(^|\s)start/ig;
+   let isExecute    = /(^|\s)execute ([\s\S]+)$/ig
+   let isStatus     = /(^|\s)status/ig;
 
    if(channelID !== config.channel && config.channel !== '*') {
      return; // ignore non channels in the filter
    }
 
+   // push into message cache.
    localMessageTable.push({
      uid: userID,
-     mid: rawEvent.d.id,
+     mid: rawEvent.d.i,
      message: message
    });
 
    // check if it's a mention.
-   var isMention = new RegExp('^\<@'+bot.id+'\>');
-   var isMentionOld = new RegExp('^@digibot');
    if(!isMention.test(message) && !isMentionOld.test(message)) {
     return; // ignore non mentions for now
    }
 
+   // priveleged functions.
    if(config.admins.indexOf(userID) !== -1) {
-     var isRestart = /(^|\s)restart/ig;
      if(isRestart.test(message)) {
-       return bot.sendMessage({
+       return sendMessage({
+         bot: bot,
          to: channelID,
-         message: "<@"+userID+"> restarting isn't currently supported. Try stop, then start"
+         message: '<@{user}> restarting isn\'t currently supported. Try stop, then start',
+         opts: {
+           user: userID
+         }
        });
      }
 
-     var isShutdown = /(^|\s)shutdown/ig;
-     if(isShutdown.test(message)) {
-       return sendAuthenticatedRequest('get', 'server/stop', function(err, res) {
+     if(isExecute.test(message)) {
+       console.log('execute commmand');
+       let data = message.match(isExecute)[0].replace(' execute ', '');
+       return sendAuthenticatedRequest('get', 'server/sendCommand/'+encodeURIComponent(data), function(err) {
          if(err) {
-           console.log('[digibot] authReq reported error:', err)
-           return false;
-         }
-
-         try {
-           res = JSON.parse(res);
-         } catch(err) {
-           return false;
-         }
-
-         if(!res.success) {
-           return bot.sendMessage({
+           return sendMessage({
+             bot: bot,
              to: channelID,
-             message: "<@"+userID+"> Failed to shutdown the server."
+             message: '<@{user}> Failed to execute the command: {err}',
+             opts: {
+               user: userID,
+               err: err
+             }
            });
          }
 
-         return bot.sendMessage({
+         // send the response.
+         return sendMessage({
+           bot: bot,
            to: channelID,
-           message: "<@"+userID+"> Sent stop request!"
+           message: '<@{user}> Command Executed.',
+           opts: {
+             user: userID
+           }
          });
-       })
+       });
      }
 
-     var isVstatus = /(^| )verbose status/igm;
+     if(isForceShut.test(message)) {
+       console.log('[mc-api] WARNING: Told to FORCE KILL the server.')
+       return sendAuthenticatedRequest('get', 'server/forceStop', function(err) {
+         if(err) {
+           return sendMessage({
+             bot: bot,
+             to: channelID,
+             message: '<@{user}> failed to forcekill the server...?',
+             opts: {
+               user: userID,
+               reason: err
+             }
+           });
+         }
+
+         serverStatus = 'down';
+
+         return sendMessage({
+           bot: bot,
+           to: channelID,
+           message: '<@{user}> Server should be dead {bold:"NOW"}.',
+           opts: {
+             user: userID
+           }
+         });
+       });
+     }
+
+     if(isShutdown.test(message)) {
+       return sendAuthenticatedRequest('get', 'server/stop', function(err) {
+         if(err) {
+           return sendMessage({
+             bot: bot,
+             to: channelID,
+             message: '<@{user}> Failed to shutdown the server. Reason: {reason}',
+             opts: {
+               user: userID,
+               reason: err
+             }
+           });
+         }
+
+         return sendMessage({
+           bot: bot,
+           to: channelID,
+           message: '<@{user}> Sent stop request!',
+           opts: {
+             user: userID
+           }
+         });
+       });
+     }
+
      if(isVstatus.test(message)) {
        return sendAuthenticatedRequest('get', 'server/status', function(err, res) {
          if(err) {
@@ -125,20 +234,20 @@
            return false;
          }
 
-         try {
-           res = JSON.parse(res);
-         } catch(err) {
-           return false;
-         }
-
-         return bot.sendMessage({
+         // send the response.
+         return sendMessage({
+           bot: bot,
            to: channelID,
-           message: "<@"+userID+"> API reports **"+res.status+"** with **"+res.latency+"**ms mcfd latency"
+           message: '<@{user}> API reports {italic:status} with {bold:latency}ms mcfd latency',
+           opts: {
+             user: userID,
+             status: serverStatus,
+             latency: res.latency
+           }
          });
-       })
+       });
      }
 
-     var isStart = /(^|\s)start/ig;
      if(isStart.test(message)) {
        return sendAuthenticatedRequest('get', 'server/start', function(err, res) {
          if(err) {
@@ -146,32 +255,38 @@
            return false;
          }
 
-         try {
-           res = JSON.parse(res);
-         } catch(err) {
-           return false;
-         }
-
          if(!res.success) {
-           return bot.sendMessage({
+           return sendMessage({
+             bot: bot,
              to: channelID,
-             message: "<@"+userID+"> Failed to start the server"
+             message: '<@{user}> Failed to start the server',
+             opts: {
+               user: userID
+             }
            });
          }
 
-         return bot.sendMessage({
+         return sendMessage({
+           bot: bot,
            to: channelID,
-           message: "<@"+userID+"> Started."
+           message: '<@{user}> Started.',
+           opts: {
+             user: userID
+           }
          });
        })
      }
    }
 
-   var isStatus = /(^|\s)status/ig;
    if(isStatus.test(message)) {
-     return bot.sendMessage({
+     return sendMessage({
+       bot: bot,
        to: channelID,
-       message: "<@"+userID+"> server is: **"+serverStatus+"**"
+       message: '<@{user}> server is: {bold:serverstatus}',
+       opts: {
+         user: userID,
+         serverstatus: serverStatus
+       }
      });
    }
  });
@@ -192,10 +307,14 @@ app.post('/event', function(req, res) {
   if(req.body.event === 'status') {
     serverStatus = req.body.data;
 
-    bot.sendMessage({
+    sendMessage({
+      bot: bot,
       to: config.broadcast,
-      message: "server is now **"+req.body.data+"**"
-    })
+      message: 'server is now {bold:status}',
+      opts: {
+        status: serverStatus
+      }
+    });
   }
 
   res.send({
@@ -203,4 +322,4 @@ app.post('/event', function(req, res) {
   })
 });
 
-app.listen(8083)
+app.listen(config.port);
