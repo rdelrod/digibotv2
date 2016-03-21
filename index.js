@@ -466,15 +466,6 @@ let parseDeploy = (data) => {
           branch: 'production'
         }
       });
-    } else if(edata.success === false) {
-      sendMessage({
-        bot: bot,
-        to: config.dev,
-        message: 'The service {bold:service} has FAILED to deploy :anger:',
-        opts: {
-          service: repo
-        }
-      });
     }
   }
 
