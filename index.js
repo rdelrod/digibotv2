@@ -446,6 +446,41 @@ const forwardToMc = (userID, message) => {
   });
 }
 
+let parseDeploy = (data) => {
+  if(data === undefined || data === 'null' || data === '') return; // fail safe.
+
+  let event  = data.event;
+  let repo   = data.repo;
+  let edata  = data.data;
+
+  console.log('deploy: got event', event);
+
+  if(event === 'status') {
+    if(edata.success) {
+      sendMessage({
+        bot: bot,
+        to: config.dev,
+        message: 'The service {bold:service} has been deployed from {bold:branch} 🎉',
+        opts: {
+          service: repo,
+          branch: 'production'
+        }
+      });
+    } else if(edata.success === false) {
+      sendMessage({
+        bot: bot,
+        to: config.dev,
+        message: 'The service {bold:service} has FAILED to deploy :anger:',
+        opts: {
+          service: repo
+        }
+      });
+    }
+  }
+
+  return;
+}
+
 let forwardMessage = (data) => {
   const message  = new Buffer(data.message, 'base64').toString('ascii');
   const username = data.from;
@@ -578,8 +613,14 @@ app.post('/event', function(req, res) {
     });
   }
 
+  console.log(req.body)
+
   if(req.body.event === 'chatMessage') {
     forwardMessage(req.body.data);
+  }
+
+  if(req.body.event === 'deploy') {
+    parseDeploy(req.body.data);
   }
 
   res.send({
