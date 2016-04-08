@@ -94,6 +94,7 @@
   * @param {String/Int} to  - channel id to send to.
   * @param {String} message - plaintext object.
   * @param {Object} opts    - handlebars like parse object.
+  * @param {String} parser  - parse input, or safe mode it. (defaut: non-safe)
   *
   * @returns {bool} success
   **/
@@ -145,7 +146,7 @@
      return; // ignore non channels in the filter
    }
 
-   if(channelID === config.forward) {
+   if(channelID === config.forward) { // if it's in forward channel, forward it.
      if(!isMention.test(message) && !isMentionOld.test(message)) {
        forwardToMc(userID, message);
      }
@@ -259,7 +260,6 @@
      }
 
      if(isForceShut.test(message)) {
-       console.log('[mc-api] WARNING: Told to FORCE KILL the server.')
        return sendAuthenticatedRequest('get', 'server/forceStop', function(err) {
          if(err) {
            return sendMessage({
@@ -472,6 +472,71 @@ let parseDeploy = (data) => {
   return;
 }
 
+/**
+ * Create a 2FA request, verify it, then callback to the service.
+ *
+ * @param {Object} data - event data.
+ *
+ * @returns {undefined} nothing
+ **/
+let loginUser = (data) => {
+  let username = data.username;
+  let id       = getUserByUsername(bot, config.main, username);
+  let ip       = data.ip;
+  let url      = data.url;
+
+  createTwoFactorRequest(bot, id, username,
+    '<@{user}> New authentication request on **'+url+'** from **'+ip+'**\n\
+Reply <@{ourID}> {bold:"confirm"} to confirm. Or <@{ourID}> {bold:"deny"} to deny.',
+
+  // callback
+  (confirmed) => {
+    if(!confirmed) {
+      return false;
+    }
+  })
+
+}
+
+/**
+ * Create a Two Factor Authentication request.
+ *
+ * @param {Object} bot - bot object
+ * @param {String} ID  - user id (discord)
+ * @param {String} username - username
+ * @param {String} message  - message format
+ * @param {Function} callback - return function, returns confirmed status.
+ *
+ * @returns {undefined} nothing
+ **/
+let createTwoFactorRequest = (bot, ID, username, message, callback) => {
+  console.log('[2FA] create request for:', username, ID);
+
+  if(callback === undefined) {
+    callback = message;
+    message = '<@{user}> Are you {bold:username}? Reply <@{ourID}> {bold:"confirm"} to confirm. Or <@{ourID}> {bold:"deny"} to deny.';
+  }
+
+  // add to the confirm table.
+  confirmTable[ID] = {
+    created: Date.now(),
+    confirmed: false,
+    action: callback,
+    link: username
+  };
+
+  return sendMessage({
+    bot: bot,
+    to: config.auth,
+    message: message,
+    opts: {
+      user: ID,
+      ourID: bot.id,
+      username: username
+    }
+  })
+}
+
 let forwardMessage = (data) => {
   const message  = new Buffer(data.message, 'base64').toString('ascii');
   const username = data.from;
@@ -497,8 +562,8 @@ let forwardMessage = (data) => {
 
       if(ID === false) return; // not a real user
 
-
-      const callback = (confirmed) => {
+      // Verify we're the user.
+      createTwoFactorRequest(ID, (confirmed) => {
         if(!confirmed) {
           console.log('[2A] Callback: Denied.');
           return;
@@ -512,30 +577,18 @@ let forwardMessage = (data) => {
         }
 
         fs.writeFileSync('./config/forwardnames.json', JSON.stringify(forwardName), 'utf8');
-      }
-
-      // add to the confirm table.
-      confirmTable[ID] = {
-        created: Date.now(),
-        confirmed: false,
-        action: callback,
-        link: username
-      };
-
-      return sendMessage({
-        bot: bot,
-        to: config.forward,
-        message: '<@{user}> Are you {bold:username}? Reply <@{ourID}> {bold:"confirm"} to confirm. Or <@{ourID}> {bold:"deny"} to deny.',
-        opts: {
-          user: ID,
-          ourID: getUserByUsername(bot, config.main, 'digitbot'),
-          username: username
-        }
-      })
+      });
     }
   }
 
 
+  /**
+   * Convert <@id> to @names
+   *
+   * @param {String} text - text to process.
+   *
+   * @returns {String} processed text
+   **/
   const processAts = (text) => {
     const matches = text.match(/@([\S]+)/ig);
 
@@ -608,6 +661,10 @@ app.post('/event', function(req, res) {
 
   if(req.body.event === 'chatMessage') {
     forwardMessage(req.body.data);
+  }
+
+  if(req.body.event === 'login') {
+    loginUser(req.body.data);
   }
 
   if(req.body.event === 'deploy') {
