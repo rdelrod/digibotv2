@@ -153,9 +153,8 @@
    }
 
    if(channelID === config.forward) { // if it's in forward channel, forward it.
-     if(!isMention.test(message) && !isMentionOld.test(message)) {
-       forwardToMc(user, userID, message);
-     }
+     console.log('foward', 'is on forward channel.')
+     return forwardToMc(user, userID, message);
    }
 
    // push into message cache.
