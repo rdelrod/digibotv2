@@ -68,7 +68,7 @@
      headers: {
        'Authentication': 'Basic '+config.authentication.accessToken+':'+config.authentication.accessTokenSecret
      }
-   }, function(err, http, body) {
+   }, (err, res, body) => {
      if(err) {
        return next(err);
      }
@@ -123,8 +123,13 @@
    })
  }
 
+ bot.on('disconnected', function() {
+   console.log('bot', 'has been disconnected. Attempt reconnect.')
+   bot.connect(); // attempt to reconnect.
+ });
+
  bot.on('message', function(user, userID, channelID, message, rawEvent) {
-   // DEBUG: console.log(user, userID, message);
+   console.log(user, userID, message);
    let isMention    = new RegExp('^\<@'+bot.id+'\>');
    let isMentionOld = new RegExp('^@digibot');
    let isVstatus    = /(^|\s)verbose status/igm;
@@ -138,7 +143,8 @@
    let isConfirm    = /(^|\s)confirm/ig;
    let isDeny       = /(^|\s)deny/ig;
 
-   if(getUserByID(bot, config.main, userID) === 'digitbot') {
+   if(userID === bot.id) {
+     console.log('drop', userID, '===', bot.id);
      return;
    }
 
@@ -148,7 +154,7 @@
 
    if(channelID === config.forward) { // if it's in forward channel, forward it.
      if(!isMention.test(message) && !isMentionOld.test(message)) {
-       forwardToMc(userID, message);
+       forwardToMc(user, userID, message);
      }
    }
 
@@ -161,61 +167,8 @@
 
    // check if it's a mention.
    if(!isMention.test(message) && !isMentionOld.test(message)) {
-    return; // ignore non mentions for now
-   }
-
-   if(isConfirm.test(message)) {
-     if(confirmTable[userID] !== undefined) {
-       if(confirmTable[userID].confirmed === false) {
-
-         confirmTable[userID].confirmed = true;
-         confirmTable[userID].action(true);
-
-         return sendMessage({
-           bot: bot,
-           to: channelID,
-           message: '<@{user}> Request has been {bold:"accepted"}!',
-           opts: {
-             user: userID
-           }
-         })
-       }
-     }
-
-     return sendMessage({
-       bot: bot,
-       to: channelID,
-       message: '<@{user}> Sorry, you have no outstanding confirmation requests!',
-       opts: {
-         user: userID
-       }
-     });
-   } else if(isDeny.test(message)) {
-     if(confirmTable[userID] !== undefined) {
-       console.log('[2A] Request Exists.')
-       if(confirmTable[userID].confirmed === false) {
-         confirmTable[userID].action(false);
-         confirmTable[userID] = undefined;
-
-         return sendMessage({
-           bot: bot,
-           to: channelID,
-           message: '<@{user}> Request has been {bold:"denied"}.',
-           opts: {
-             user: userID
-           }
-         })
-       }
-     }
-
-     return sendMessage({
-       bot: bot,
-       to: channelID,
-       message: '<@{user}> Sorry, you have no outstanding confirmation requests!',
-       opts: {
-         user: userID
-       }
-     });
+     console.log('drop', 'is not mention');
+     return; // ignore non mentions for now
    }
 
    // priveleged functions.
@@ -375,52 +328,14 @@
    }
  });
 
-const getUserByUsername = (bot, server, username) => {
-  let id = false;
-  const members = bot.servers[server].members;
-
-  // run over it.
-  Object.keys(members).forEach(function(v) {
-    const member = members[v];
-
-    if(member.user.username === username) {
-      id = member.user.id
-    }
-  });
-
-  return id;
-}
-
-const getUserByID = (bot, server, id) => {
-  let username = false;
-  const members = bot.servers[server].members;
-
-  // run over it.
-  Object.keys(members).forEach(function(v) {
-    const member = members[v];
-
-    if(member.user.id === id) {
-      username = member.user.username
-    }
-  });
-
-  return username;
-}
-
-const forwardToMc = (userID, message) => {
-  let username = getUserByID(bot, config.main, userID);
-
-  console.log(forwardName);
-
+const forwardToMc = (username, userID, message) => {
   // translate ids to usernames
   const matches = message.match(/<@([\d]+)>/g);
 
   if(matches !== null) {
     let finaltext = message;
     matches.forEach(function(v) {
-      let id = v.replace('<@', '').replace('>', '');
-
-      finaltext = finaltext.replace(v, '@'+getUserByID(bot, config.main, id));
+      finaltext = finaltext.replace(v, '@'+username);
     });
 
     message = finaltext;
@@ -446,8 +361,8 @@ const forwardToMc = (userID, message) => {
   });
 }
 
-let parseDeploy = (data) => {
-  if(data === undefined || data === 'null' || data === '') return; // fail safe.
+let parseDeploy = data => {
+  if(typeof data !== 'object') return;
 
   let event  = data.event;
   let repo   = data.repo;
@@ -455,176 +370,34 @@ let parseDeploy = (data) => {
 
   console.log('deploy: got event', event);
 
-  if(event === 'status') {
-    if(edata.success) {
-      sendMessage({
-        bot: bot,
-        to: config.dev,
-        message: 'The service {bold:service} has been deployed from {bold:branch} 🎉',
-        opts: {
-          service: repo,
-          branch: 'production'
-        }
-      });
-    }
-  }
+  if(event !== 'success') return false;
+  if(!edata.success) return false;
 
-  return;
-}
-
-/**
- * Create a 2FA request, verify it, then callback to the service.
- *
- * @param {Object} data - event data.
- *
- * @returns {undefined} nothing
- **/
-let loginUser = (data) => {
-  let username = data.username;
-  let id       = getUserByUsername(bot, config.main, username);
-  let ip       = data.ip;
-  let url      = data.url;
-
-  createTwoFactorRequest(bot, id, username,
-    '<@{user}> New authentication request on **'+url+'** from **'+ip+'**\n\
-Reply <@{ourID}> {bold:"confirm"} to confirm. Or <@{ourID}> {bold:"deny"} to deny.',
-
-  // callback
-  (confirmed) => {
-    if(!confirmed) {
-      return false;
-    }
-  })
-
-}
-
-/**
- * Create a Two Factor Authentication request.
- *
- * @param {Object} bot - bot object
- * @param {String} ID  - user id (discord)
- * @param {String} username - username
- * @param {String} message  - message format
- * @param {Function} callback - return function, returns confirmed status.
- *
- * @returns {undefined} nothing
- **/
-let createTwoFactorRequest = (bot, ID, username, message, callback) => {
-  console.log('[2FA] create request for:', username, ID);
-
-  if(callback === undefined) {
-    callback = message;
-    message = '<@{user}> Are you {bold:username}? Reply <@{ourID}> {bold:"confirm"} to confirm. Or <@{ourID}> {bold:"deny"} to deny.';
-  }
-
-  // add to the confirm table.
-  confirmTable[ID] = {
-    created: Date.now(),
-    confirmed: false,
-    action: callback,
-    link: username
-  };
-
+  // return a message.
   return sendMessage({
     bot: bot,
-    to: config.auth,
-    message: message,
+    to: config.dev,
+    message: 'The service {bold:service} has been deployed from {bold:branch} 🎉',
     opts: {
-      user: ID,
-      ourID: bot.id,
-      username: username
+      service: repo,
+      branch: 'production'
     }
-  })
+  });
 }
 
 let forwardMessage = (data) => {
   const message  = new Buffer(data.message, 'base64').toString('ascii');
   const username = data.from;
 
-  let isMentionOld = new RegExp('^@discord');
-  let isIdent      = /\sidentity ([A-Z0-9]+)/ig
-
-  if(isMentionOld.test(message)) {
-    if(isIdent.test(message)) {
-      let willBe = /\sidentity ([A-Z0-9]+)/ig.exec(message)[1];
-
-      if(!willBe) return; // not supplied
-
-      let ID = getUserByUsername(bot, config.main, willBe);
-
-      if(forwardName[ID] !== undefined) {
-        if(forwardName[ID].name === username) {
-          return;
-        }
-      }
-
-      console.log(willBe, '=>', ID);
-
-      if(ID === false) return; // not a real user
-
-      // Verify we're the user.
-      createTwoFactorRequest(ID, (confirmed) => {
-        if(!confirmed) {
-          console.log('[2A] Callback: Denied.');
-          return;
-        }
-
-        console.log('[2A] Callback: Confirmed.')
-
-        forwardName[ID] = {
-          set: Date.now(),
-          name: username
-        }
-
-        fs.writeFileSync('./config/forwardnames.json', JSON.stringify(forwardName), 'utf8');
-      });
-    }
-  }
-
-
-  /**
-   * Convert <@id> to @names
-   *
-   * @param {String} text - text to process.
-   *
-   * @returns {String} processed text
-   **/
-  const processAts = (text) => {
-    const matches = text.match(/@([\S]+)/ig);
-
-    let finaltext = text;
-
-    if(matches === null) {
-      console.log('No matches.')
-      return text;
-    }
-
-    matches.forEach(function(v) {
-      v = v.replace('@', '');
-
-      let replacewith = getUserByUsername(bot, config.main, v);
-
-      if(!replacewith) {
-        replacewith = '@'+v;
-      } else {
-        replacewith = '<@'+replacewith+'>'
-      }
-
-      finaltext = text.replace('@'+v, replacewith);
-    })
-
-    return finaltext;
-  }
-
-
-    // send the response.
   return sendMessage({
     bot: bot,
     to: config.forward,
-    message: '<'+username+'> '+processAts(message),
-    opts: {},
-    parser: 'safe'
-  });
+    message: '<{username}> {data}',
+    opts: {
+      username: username,
+      data: message
+    }
+  })
 }
 
 /* Express "webhook" */
@@ -636,7 +409,7 @@ const morgan = require('morgan');
 app.use(bodyP.json());
 app.use(morgan('dev'));
 
-app.post('/event', function(req, res) {
+app.post('/event', (req, res) => {
   if(req.body.event === 'status') {
     if(config.production === false) { // if not production, ignore.
       return res.send({
@@ -657,21 +430,15 @@ app.post('/event', function(req, res) {
     });
   }
 
-  console.log(req.body)
-
   if(req.body.event === 'chatMessage') {
     forwardMessage(req.body.data);
-  }
-
-  if(req.body.event === 'login') {
-    loginUser(req.body.data);
   }
 
   if(req.body.event === 'deploy') {
     parseDeploy(req.body.data);
   }
 
-  res.send({
+  return res.send({
     success: true
   })
 });
